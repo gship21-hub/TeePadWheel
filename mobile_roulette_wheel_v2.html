@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile Roulette Wheel</title>
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #121212;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  h1 { font-size: 20px; margin: 10px 0; }
+
+  .controls {
+    width: 95%;
+    display: flex;
+    gap: 5px;
+    margin-bottom: 5px;
+  }
+
+  input {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+  }
+
+  button {
+    padding: 12px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    background: #4da6ff;
+    color: white;
+  }
+
+  canvas {
+    margin-top: 10px;
+    width: 90vw;
+    height: 90vw;
+    max-width: 400px;
+    max-height: 400px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  .pointer {
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 20px solid yellow; /* flipped 180° */
+    margin-top: 5px;
+  }
+
+  .result {
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<h1>Roulette Wheel</h1>
+
+<div class="controls">
+  <input type="text" id="optionInput" placeholder="Add option">
+  <button onclick="addOption()">+</button>
+</div>
+
+<div class="controls">
+  <button style="flex:1;background:#28a745;" onclick="spinWheel()">SPIN</button>
+</div>
+
+<canvas id="wheel"></canvas>
+<div class="pointer"></div>
+
+<div class="result" id="resultText"></div>
+
+<script>
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+
+let options = [];
+let angle = 0;
+
+function resizeCanvas() {
+  const size = Math.min(window.innerWidth * 0.9, 400);
+  canvas.width = size;
+  canvas.height = size;
+  drawWheel();
+}
+window.addEventListener("resize", resizeCanvas);
+
+function addOption() {
+  const input = document.getElementById("optionInput");
+  const val = input.value.trim();
+  if (!val) return;
+
+  options.push(val);
+  input.value = "";
+  drawWheel();
+}
+
+function expandedOptions() {
+  let arr = [];
+  options.forEach(o => {
+    for (let i = 0; i < 3; i++) arr.push(o);
+  });
+  return arr;
+}
+
+function getColor(i, total) {
+  const hue = (i * 360 / total);
+  return `hsl(${hue}, 70%, 60%)`;
+}
+
+function drawWheel() {
+  const items = expandedOptions();
+  const size = canvas.width;
+  const center = size / 2;
+  const radius = center;
+
+  ctx.clearRect(0, 0, size, size);
+  if (!items.length) return;
+
+  const arc = (2 * Math.PI) / items.length;
+
+  items.forEach((item, i) => {
+    const start = angle + i * arc;
+    const end = start + arc;
+
+    ctx.beginPath();
+    ctx.moveTo(center, center);
+    ctx.arc(center, center, radius, start, end);
+    ctx.fillStyle = getColor(i, items.length);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(center, center);
+    ctx.rotate(start + arc / 2);
+    ctx.fillStyle = "#000";
+    ctx.font = (radius / 12) + "px Arial";
+    ctx.fillText(item, radius * 0.5, 5);
+    ctx.restore();
+  });
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function spinWheel() {
+  if (!options.length) return;
+
+  const duration = 4000;
+  const startAngle = angle;
+  const spinAmount = Math.random() * 6 + 8; // number of rotations
+  const targetAngle = startAngle + spinAmount * 2 * Math.PI;
+
+  let start = null;
+
+  function animate(ts) {
+    if (!start) start = ts;
+    const progress = (ts - start) / duration;
+    const eased = easeOutCubic(Math.min(progress, 1));
+
+    angle = startAngle + (targetAngle - startAngle) * eased;
+    drawWheel();
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      showResult();
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function showResult() {
+  const items = expandedOptions();
+  const arc = (2 * Math.PI) / items.length;
+
+  const pointerAngle = Math.PI / 2; // bottom pointer
+  const adjusted = (angle + pointerAngle) % (2 * Math.PI);
+
+  const index = Math.floor((2 * Math.PI - adjusted) / arc) % items.length;
+
+  document.getElementById("resultText").innerText = "Result: " + items[index];
+}
+
+resizeCanvas();
+</script>
+
+</body>
+</html>
