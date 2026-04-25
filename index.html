@@ -3,70 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mobile Roulette Wheel</title>
+<title>Roulette Wheel</title>
+
 <style>
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #121212;
-    color: white;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #121212;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 
-  h1 { font-size: 20px; margin: 10px 0; }
+h1 { margin: 10px 0; font-size: 20px; }
 
-  .controls {
-    width: 95%;
-    display: flex;
-    gap: 5px;
-    margin-bottom: 5px;
-  }
+.controls {
+  width: 95%;
+  display: flex;
+  gap: 5px;
+  margin-bottom: 5px;
+}
 
-  input {
-    flex: 1;
-    padding: 12px;
-    font-size: 16px;
-    border-radius: 8px;
-    border: none;
-  }
+input {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+}
 
-  button {
-    padding: 12px;
-    font-size: 16px;
-    border: none;
-    border-radius: 8px;
-    background: #4da6ff;
-    color: white;
-  }
+button {
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  background: #4da6ff;
+  color: white;
+}
 
-  canvas {
-    margin-top: 10px;
-    width: 90vw;
-    height: 90vw;
-    max-width: 400px;
-    max-height: 400px;
-    background: white;
-    border-radius: 50%;
-  }
+canvas {
+  width: 90vw;
+  height: 90vw;
+  max-width: 400px;
+  max-height: 400px;
+  background: white;
+  border-radius: 50%;
+  margin-top: 5px;
+}
 
-  .pointer {
-    width: 0;
-    height: 0;
-    border-left: 12px solid transparent;
-    border-right: 12px solid transparent;
-    border-top: 20px solid yellow; /* flipped 180° */
-    margin-top: 5px;
-  }
+/* POINTER AT TOP */
+.pointer {
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 20px solid yellow;
+}
 
-  .result {
-    margin-top: 10px;
-    font-size: 18px;
-    font-weight: bold;
-  }
+.options {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.result {
+  margin-top: 5px;
+  font-size: 18px;
+  font-weight: bold;
+}
 </style>
 </head>
+
 <body>
 
 <h1>Roulette Wheel</h1>
@@ -80,9 +87,10 @@
   <button style="flex:1;background:#28a745;" onclick="spinWheel()">SPIN</button>
 </div>
 
-<canvas id="wheel"></canvas>
 <div class="pointer"></div>
+<canvas id="wheel"></canvas>
 
+<div class="options" id="optionsList"></div>
 <div class="result" id="resultText"></div>
 
 <script>
@@ -92,6 +100,7 @@ const ctx = canvas.getContext("2d");
 let options = [];
 let angle = 0;
 
+/* Resize for mobile */
 function resizeCanvas() {
   const size = Math.min(window.innerWidth * 0.9, 400);
   canvas.width = size;
@@ -100,6 +109,7 @@ function resizeCanvas() {
 }
 window.addEventListener("resize", resizeCanvas);
 
+/* Add option */
 function addOption() {
   const input = document.getElementById("optionInput");
   const val = input.value.trim();
@@ -107,22 +117,34 @@ function addOption() {
 
   options.push(val);
   input.value = "";
+  updateOptionsList();
   drawWheel();
 }
 
+/* Show options ABOVE result */
+function updateOptionsList() {
+  document.getElementById("optionsList").innerText =
+    options.length ? "Options: " + options.join(", ") : "";
+}
+
+/* Expand options x3 */
 function expandedOptions() {
   let arr = [];
-  options.forEach(o => {
-    for (let i = 0; i < 3; i++) arr.push(o);
+  options.forEach((o, idx) => {
+    for (let i = 0; i < 3; i++) {
+      arr.push({ label: o, baseIndex: idx });
+    }
   });
   return arr;
 }
 
-function getColor(i, total) {
-  const hue = (i * 360 / total);
+/* ONE COLOR PER ORIGINAL OPTION */
+function getColor(index) {
+  const hue = (index * 360 / options.length);
   return `hsl(${hue}, 70%, 60%)`;
 }
 
+/* Draw wheel */
 function drawWheel() {
   const items = expandedOptions();
   const size = canvas.width;
@@ -141,7 +163,7 @@ function drawWheel() {
     ctx.beginPath();
     ctx.moveTo(center, center);
     ctx.arc(center, center, radius, start, end);
-    ctx.fillStyle = getColor(i, items.length);
+    ctx.fillStyle = getColor(item.baseIndex);
     ctx.fill();
 
     ctx.save();
@@ -149,11 +171,12 @@ function drawWheel() {
     ctx.rotate(start + arc / 2);
     ctx.fillStyle = "#000";
     ctx.font = (radius / 12) + "px Arial";
-    ctx.fillText(item, radius * 0.5, 5);
+    ctx.fillText(item.label, radius * 0.5, 5);
     ctx.restore();
   });
 }
 
+/* Smooth spin physics */
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -163,8 +186,8 @@ function spinWheel() {
 
   const duration = 4000;
   const startAngle = angle;
-  const spinAmount = Math.random() * 6 + 8; // number of rotations
-  const targetAngle = startAngle + spinAmount * 2 * Math.PI;
+  const spins = Math.random() * 6 + 8;
+  const targetAngle = startAngle + spins * 2 * Math.PI;
 
   let start = null;
 
@@ -186,18 +209,21 @@ function spinWheel() {
   requestAnimationFrame(animate);
 }
 
+/* Result aligned with TOP pointer */
 function showResult() {
   const items = expandedOptions();
   const arc = (2 * Math.PI) / items.length;
 
-  const pointerAngle = Math.PI / 2; // bottom pointer
+  const pointerAngle = (3 * Math.PI) / 2;
   const adjusted = (angle + pointerAngle) % (2 * Math.PI);
 
   const index = Math.floor((2 * Math.PI - adjusted) / arc) % items.length;
 
-  document.getElementById("resultText").innerText = "Result: " + items[index];
+  document.getElementById("resultText").innerText =
+    "Result: " + items[index].label;
 }
 
+/* Init */
 resizeCanvas();
 </script>
 
