@@ -16,7 +16,10 @@ body {
   align-items: center;
 }
 
-h1 { margin: 10px 0; font-size: 20px; }
+h1 {
+  margin: 10px 0;
+  font-size: 20px;
+}
 
 .controls {
   width: 95%;
@@ -52,7 +55,7 @@ canvas {
   margin-top: 5px;
 }
 
-/* POINTER AT TOP */
+/* Pointer stays at top */
 .pointer {
   width: 0;
   height: 0;
@@ -64,6 +67,8 @@ canvas {
 .options {
   margin-top: 10px;
   font-size: 14px;
+  text-align: center;
+  padding: 0 10px;
 }
 
 .result {
@@ -98,7 +103,7 @@ const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 
 let options = [];
-let angle = 0;
+let angle = Math.PI; // ROTATE WHEEL 180° by default
 
 /* Resize for mobile */
 function resizeCanvas() {
@@ -121,24 +126,35 @@ function addOption() {
   drawWheel();
 }
 
-/* Show options ABOVE result */
+/* Show options */
 function updateOptionsList() {
   document.getElementById("optionsList").innerText =
     options.length ? "Options: " + options.join(", ") : "";
 }
 
-/* Expand options x3 */
+/* 
+Distribute each option x3 WITHOUT placing duplicates next to each other
+Example:
+A,B,C -> A,B,C,A,B,C,A,B,C
+*/
 function expandedOptions() {
-  let arr = [];
-  options.forEach((o, idx) => {
-    for (let i = 0; i < 3; i++) {
-      arr.push({ label: o, baseIndex: idx });
+  let arranged = [];
+
+  if (!options.length) return arranged;
+
+  for (let round = 0; round < 3; round++) {
+    for (let i = 0; i < options.length; i++) {
+      arranged.push({
+        label: options[i],
+        baseIndex: i
+      });
     }
-  });
-  return arr;
+  }
+
+  return arranged;
 }
 
-/* ONE COLOR PER ORIGINAL OPTION */
+/* Same color for each original option */
 function getColor(index) {
   const hue = (index * 360 / options.length);
   return `hsl(${hue}, 70%, 60%)`;
@@ -171,12 +187,13 @@ function drawWheel() {
     ctx.rotate(start + arc / 2);
     ctx.fillStyle = "#000";
     ctx.font = (radius / 12) + "px Arial";
-    ctx.fillText(item.label, radius * 0.5, 5);
+    ctx.textAlign = "center";
+    ctx.fillText(item.label, radius * 0.62, 5);
     ctx.restore();
   });
 }
 
-/* Smooth spin physics */
+/* Better spin */
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
@@ -191,12 +208,14 @@ function spinWheel() {
 
   let start = null;
 
-  function animate(ts) {
-    if (!start) start = ts;
-    const progress = (ts - start) / duration;
-    const eased = easeOutCubic(Math.min(progress, 1));
+  function animate(timestamp) {
+    if (!start) start = timestamp;
+
+    const progress = Math.min((timestamp - start) / duration, 1);
+    const eased = easeOutCubic(progress);
 
     angle = startAngle + (targetAngle - startAngle) * eased;
+
     drawWheel();
 
     if (progress < 1) {
@@ -209,9 +228,11 @@ function spinWheel() {
   requestAnimationFrame(animate);
 }
 
-/* Result aligned with TOP pointer */
+/* Result from top pointer */
 function showResult() {
   const items = expandedOptions();
+  if (!items.length) return;
+
   const arc = (2 * Math.PI) / items.length;
 
   const pointerAngle = (3 * Math.PI) / 2;
