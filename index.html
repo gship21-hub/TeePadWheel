@@ -52,16 +52,18 @@ canvas {
   max-height: 400px;
   background: white;
   border-radius: 50%;
-  margin-top: 5px;
+  margin-top: 0;
 }
 
-/* Pointer stays at top */
+/* POINTER ABOVE WHEEL, POINT FACING DOWN */
 .pointer {
   width: 0;
   height: 0;
-  border-left: 12px solid transparent;
-  border-right: 12px solid transparent;
-  border-bottom: 20px solid yellow;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 24px solid yellow;
+  margin-bottom: -3px;
+  z-index: 10;
 }
 
 .options {
@@ -75,6 +77,7 @@ canvas {
   margin-top: 5px;
   font-size: 18px;
   font-weight: bold;
+  padding-bottom: 20px;
 }
 </style>
 </head>
@@ -103,7 +106,7 @@ const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 
 let options = [];
-let angle = Math.PI; // ROTATE WHEEL 180° by default
+let angle = 0;
 
 /* Resize for mobile */
 function resizeCanvas() {
@@ -118,24 +121,26 @@ window.addEventListener("resize", resizeCanvas);
 function addOption() {
   const input = document.getElementById("optionInput");
   const val = input.value.trim();
+
   if (!val) return;
 
   options.push(val);
   input.value = "";
+
   updateOptionsList();
   drawWheel();
 }
 
-/* Show options */
+/* Show entered options */
 function updateOptionsList() {
   document.getElementById("optionsList").innerText =
     options.length ? "Options: " + options.join(", ") : "";
 }
 
-/* 
-Distribute each option x3 WITHOUT placing duplicates next to each other
-Example:
-A,B,C -> A,B,C,A,B,C,A,B,C
+/*
+Multiply each option x3
+Distribute so duplicates are NOT adjacent:
+A,B,C => A,B,C,A,B,C,A,B,C
 */
 function expandedOptions() {
   let arranged = [];
@@ -154,20 +159,22 @@ function expandedOptions() {
   return arranged;
 }
 
-/* Same color for each original option */
+/* One consistent color per original option */
 function getColor(index) {
-  const hue = (index * 360 / options.length);
+  const hue = (index * 360 / Math.max(options.length, 1));
   return `hsl(${hue}, 70%, 60%)`;
 }
 
 /* Draw wheel */
 function drawWheel() {
   const items = expandedOptions();
+
   const size = canvas.width;
   const center = size / 2;
   const radius = center;
 
   ctx.clearRect(0, 0, size, size);
+
   if (!items.length) return;
 
   const arc = (2 * Math.PI) / items.length;
@@ -176,33 +183,50 @@ function drawWheel() {
     const start = angle + i * arc;
     const end = start + arc;
 
+    /* Slice */
     ctx.beginPath();
     ctx.moveTo(center, center);
     ctx.arc(center, center, radius, start, end);
+    ctx.closePath();
+
     ctx.fillStyle = getColor(item.baseIndex);
     ctx.fill();
 
+    /* Text */
     ctx.save();
     ctx.translate(center, center);
     ctx.rotate(start + arc / 2);
+
     ctx.fillStyle = "#000";
-    ctx.font = (radius / 12) + "px Arial";
+    ctx.font = `${Math.max(radius / 13, 12)}px Arial`;
     ctx.textAlign = "center";
-    ctx.fillText(item.label, radius * 0.62, 5);
+
+    ctx.fillText(item.label, radius * 0.63, 5);
+
     ctx.restore();
   });
+
+  /* Center circle */
+  ctx.beginPath();
+  ctx.arc(center, center, radius * 0.08, 0, 2 * Math.PI);
+  ctx.fillStyle = "#222";
+  ctx.fill();
 }
 
-/* Better spin */
+/* Smooth spin easing */
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
+/* Spin */
 function spinWheel() {
   if (!options.length) return;
 
-  const duration = 4000;
+  document.getElementById("resultText").innerText = "";
+
+  const duration = 4500;
   const startAngle = angle;
+
   const spins = Math.random() * 6 + 8;
   const targetAngle = startAngle + spins * 2 * Math.PI;
 
@@ -228,17 +252,24 @@ function spinWheel() {
   requestAnimationFrame(animate);
 }
 
-/* Result from top pointer */
+/* Result from TOP pointer */
 function showResult() {
   const items = expandedOptions();
+
   if (!items.length) return;
 
   const arc = (2 * Math.PI) / items.length;
 
+  /*
+  Pointer is fixed at TOP (270°)
+  Determine which segment is under that point
+  */
   const pointerAngle = (3 * Math.PI) / 2;
-  const adjusted = (angle + pointerAngle) % (2 * Math.PI);
 
-  const index = Math.floor((2 * Math.PI - adjusted) / arc) % items.length;
+  const normalized =
+    ((2 * Math.PI) - (angle % (2 * Math.PI)) + pointerAngle) % (2 * Math.PI);
+
+  const index = Math.floor(normalized / arc) % items.length;
 
   document.getElementById("resultText").innerText =
     "Result: " + items[index].label;
