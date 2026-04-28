@@ -87,7 +87,7 @@ canvas {
 <h1>Roulette Wheel</h1>
 
 <div class="controls">
-  <input type="text" id="optionInput" placeholder="Add option">
+  <input type="text" id="optionInput" placeholder="Add option (or color)">
   <button onclick="addOption()">+</button>
 </div>
 
@@ -106,6 +106,7 @@ const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 
 let options = [];
+let colors = [];
 let angle = 0;
 
 /* Resize for mobile */
@@ -117,7 +118,7 @@ function resizeCanvas() {
 }
 window.addEventListener("resize", resizeCanvas);
 
-/* Add option */
+/* Add option with color handling */
 function addOption() {
   const input = document.getElementById("optionInput");
   const val = input.value.trim();
@@ -125,10 +126,30 @@ function addOption() {
   if (!val) return;
 
   options.push(val);
-  input.value = "";
 
+  // Check if the value is a valid color, if not, assign a random color later
+  if (isValidColor(val)) {
+    colors.push(val);  // Use this color for the option
+  } else {
+    colors.push(getRandomColor());  // Assign a random color
+  }
+
+  input.value = "";
   updateOptionsList();
   drawWheel();
+}
+
+/* Validate color string */
+function isValidColor(str) {
+  const s = new Option().style;
+  s.color = str;
+  return s.color !== ''; // If the color is valid, it will return a valid color
+}
+
+/* Get random color */
+function getRandomColor() {
+  const randomColor = Math.floor(Math.random() * 16777215).toString(16);
+  return `#${randomColor.padStart(6, '0')}`;
 }
 
 /* Show entered options */
@@ -137,11 +158,7 @@ function updateOptionsList() {
     options.length ? "Options: " + options.join(", ") : "";
 }
 
-/*
-Multiply each option x3
-Distribute so duplicates are NOT adjacent:
-A,B,C => A,B,C,A,B,C,A,B,C
-*/
+/* Multiply each option x3 and maintain unique placement */
 function expandedOptions() {
   let arranged = [];
 
@@ -159,10 +176,9 @@ function expandedOptions() {
   return arranged;
 }
 
-/* One consistent color per original option */
+/* Get color for option */
 function getColor(index) {
-  const hue = (index * 360 / Math.max(options.length, 1));
-  return `hsl(${hue}, 70%, 60%)`;
+  return colors[index] || getRandomColor();  // Use the color from the array, fallback to random
 }
 
 /* Draw wheel */
@@ -189,7 +205,7 @@ function drawWheel() {
     ctx.arc(center, center, radius, start, end);
     ctx.closePath();
 
-    ctx.fillStyle = getColor(item.baseIndex);
+    ctx.fillStyle = getColor(item.baseIndex);  // Use correct color for the option
     ctx.fill();
 
     /* Text */
